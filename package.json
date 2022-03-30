@@ -5,7 +5,7 @@
   "main": "lib/index",
   "scripts": {
     "start": "./node_modules/.bin/ts-node --async-stack-traces -- ./src/boot.ts",
-    "generate-api-key": "./node_modules/.bin/ts-node ./bin/generate_key.ts",
+    "generate-api-key": "node --max-old-space-size=4096 ./node_modules/.bin/ts-node ./bin/generate_key.ts",
     "copy-api-types": "./node_modules/.bin/ts-node ./bin/copy_api_types.ts",
     "build": "rm -rf lib; ./node_modules/.bin/tsc -d -p tsconfig.npm.json",
     "dev": "./node_modules/.bin/nodemon --exec ./node_modules/.bin/ts-node --async-stack-traces --no-cache --type-check -- ./src/boot.ts",
