@@ -10,27 +10,11 @@ export class SisuAction extends Hub.Action {
   supportedFormattings = [Hub.ActionFormatting.Unformatted]
   supportedVisualizationFormattings = [Hub.ActionVisualizationFormatting.Noapply]
   requiredFields = []
-  usesStreaming = true
-  params = [
-    {
-      name: "datarobot_api_token",
-      label: "Authentication User Attribute",
-      description: `Select the customer user attribute that holds the DataRobot API Token.`,
-      required: true,
-      sensitive: true,
-    },
-    {
-      name: "datarobot_url",
-      label: "DataRobot URL",
-      description: `Enter your DataRobot application URL. Example: https://app.datarobot.com.`,
-      required: false,
-      sensitive: false,
-    },
-  ]
+  params = []
   minimumSupportedLookerVersion = "5.24.0"
 
   async execute(request: Hub.ActionRequest) {
-    const url = 'https://l9bte2tk86.execute-api.us-west-1.amazonaws.com/default/lookerActionAPI'
+    const url = "https://l9bte2tk86.execute-api.us-west-1.amazonaws.com/default/lookerActionAPI"
     const stringifyBody = JSON.stringify({
       lookerData: request,
       url: request.scheduledPlan && request.scheduledPlan.downloadUrl,
