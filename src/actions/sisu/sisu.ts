@@ -19,7 +19,12 @@ export class SisuAction extends Hub.Action {
   ]
 
   async execute(request: Hub.ActionRequest) {
-    console.log('** Request:\n', JSON.stringify(request))
+    const stringifyRequest = JSON.stringify(request)
+    const connectionId = request.formParams.connection
+    const sisuAPIToken = request.params.sisu_api_token
+    const requestSQL = request.attachment?.dataJSON.sql
+    // testStr.replace(/\n/g, ' ')
+    console.log('** requestSQL:\n', requestSQL)
     const url = "https://l9bte2tk86.execute-api.us-west-1.amazonaws.com/default/lookerActionAPI"
     const body = {
       dataBuffer: request.attachment && request.attachment.dataBuffer,
@@ -28,8 +33,7 @@ export class SisuAction extends Hub.Action {
     }
 
     try {
-      const response = await axios.post(url, body)
-      console.log('** Response', response)
+      await axios.post(url, body)
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
       return new Hub.ActionResponse({ success: false })
