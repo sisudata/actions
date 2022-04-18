@@ -38,14 +38,31 @@ export class SisuAction extends Hub.Action {
   }
 
   async form(request: Hub.ActionRequest) {
-    console.log('--   FORM REQUEST', request)
-    console.log('--   FORM REQUEST sisu_api_token', request.params.sisu_api_token)
+    const sisuAPIToken = request.params.sisu_api_token
+    if (!sisuAPIToken) {
+      throw "Need an API token."
+    }
+
+    const options = [
+      { name: 'Test123', label: 'Test'}
+    ]
+
+    const axisoConfig = {
+      headers: {
+        'Authorization': sisuAPIToken
+      }
+    }
+    const connections = await axios.get('https://dev.sisu.ai/rest/connections', axisoConfig)
+
+    console.log('--- connections', connections)
     const form = new Hub.ActionForm()
     form.fields = [{
-      label: "Select connection in Sisu",
-      name: "message",
+      label: "Sisu's connections",
+      name: "connection",
+      description: "Select the equivalent connection'data-warehouse in Sisu.",
       required: true,
-      type: "textarea",
+      type: "select",
+      options,
     }]
     return form
   }
