@@ -7,7 +7,7 @@ export class SisuAction extends Hub.Action {
   iconName = "sisu/sisu_logo.svg"
   description = "Send data to Sisu and create a new kda."
   supportedActionTypes = [Hub.ActionType.Cell, Hub.ActionType.Dashboard, Hub.ActionType.Query]
-  supportedFormats = [Hub.ActionFormat.Csv, Hub.ActionFormat.Json, Hub.ActionFormat.JsonDetail]
+  supportedFormats = [Hub.ActionFormat.JsonDetail]
   supportedFormattings = [Hub.ActionFormatting.Unformatted]
   params = [
     {
@@ -35,6 +35,17 @@ export class SisuAction extends Hub.Action {
       console.log('** ERROR', error)
       return new Hub.ActionResponse({ success: false })
     }
+  }
+
+  async form() {
+    const form = new Hub.ActionForm()
+    form.fields = [{
+      label: "Select connection in Sisu",
+      name: "message",
+      required: true,
+      type: "textarea",
+    }]
+    return form
   }
 }
 
