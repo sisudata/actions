@@ -8,7 +8,7 @@ export class SisuAction extends Hub.Action {
   description = "Send data to Sisu and create a new kda."
   supportedActionTypes = [Hub.ActionType.Cell, Hub.ActionType.Dashboard, Hub.ActionType.Query]
   supportedFormats = [Hub.ActionFormat.JsonDetail]
-  supportedFormattings = [Hub.ActionFormatting.Unformatted]
+  supportedFormattings = [Hub.ActionFormatting.Formatted]
   params = [
     {
       name: "sisu_api_token",
