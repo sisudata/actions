@@ -42,7 +42,8 @@ export class SisuAction extends Hub.Action {
       if (!tableDB) {
         throw "Wasn't able to map a table in Sisu."
       }
-      console.log('--- tableDB:', tableDB)
+      const newSQL = requestSQL.slice(0, requestSQL.indexOf('FROM')) + tableDB + requestSQL.slice(requestSQL.indexOf('FROM'))
+      console.log('--- newSQL:', newSQL)
 
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
@@ -100,3 +101,5 @@ export class SisuAction extends Hub.Action {
 }
 
 Hub.addAction(new SisuAction())
+
+
