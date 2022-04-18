@@ -43,18 +43,17 @@ export class SisuAction extends Hub.Action {
       throw "Need an API token."
     }
 
-    const options = [
-      { name: 'Test123', label: 'Test'}
-    ]
-
     const axisoConfig = {
       headers: {
         'Authorization': sisuAPIToken
       }
     }
-    const connections = await axios.get('https://dev.sisu.ai/rest/connections', axisoConfig)
 
-    console.log('--- connections', connections)
+    const response = await axios.get('https://dev.sisu.ai/rest/connections', axisoConfig)
+
+    const options = response.data.map((connection: any) => {
+      return { name: connection.id, label: connection.name}
+    })
     const form = new Hub.ActionForm()
     form.fields = [{
       label: "Sisu's connections",
