@@ -42,7 +42,7 @@ export class SisuAction extends Hub.Action {
       if (!tableDB) {
         throw "Wasn't able to map a table in Sisu."
       }
-      console.log('--- TABLES:', tables)
+      console.log('--- tableDB:', tableDB)
 
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
