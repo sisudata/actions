@@ -1,36 +1,38 @@
 import * as Hub from "../../hub"
-
+import axios from "axios"
 export class SisuAction extends Hub.Action {
 
   name = "sisu"
   label = "Sisu Data - Create New KDA"
+  iconName = "sisu/sisu_logo.svg"
   description = "Send data to Sisu and create a new kda."
-  supportedActionTypes = [Hub.ActionType.Query]
-  supportedFormats = [Hub.ActionFormat.Csv]
+  supportedActionTypes = [Hub.ActionType.Cell, Hub.ActionType.Dashboard, Hub.ActionType.Query]
+  supportedFormats = [Hub.ActionFormat.Csv, Hub.ActionFormat.Json, Hub.ActionFormat.JsonDetail]
   supportedFormattings = [Hub.ActionFormatting.Unformatted]
-  supportedVisualizationFormattings = [Hub.ActionVisualizationFormatting.Noapply]
-  requiredFields = []
-  params = []
-  minimumSupportedLookerVersion = "5.24.0"
+  params = [
+    {
+      name: "sisu_api_token",
+      label: "API token",
+      required: false,
+      sensitive: false,
+    }
+  ]
 
   async execute(request: Hub.ActionRequest) {
+    console.log('** Request:\n', JSON.stringify(request))
     const url = "https://l9bte2tk86.execute-api.us-west-1.amazonaws.com/default/lookerActionAPI"
-    const stringifyBody = JSON.stringify({
-      lookerData: request,
-      url: request.scheduledPlan && request.scheduledPlan.downloadUrl,
-    })
-    const init = {
-      body: stringifyBody,
-      method: 'POST',
+    const body = {
+      dataBuffer: request.attachment && request.attachment.dataBuffer,
+      csvTitle: request.scheduledPlan && request.scheduledPlan.title,
+      query: request.scheduledPlan && request.scheduledPlan.query,
     }
 
     try {
-      const response = await fetch(url, init)
-      const json = await response.json()
-      console.log('JSON', json)
+      const response = await axios.post(url, body)
+      console.log('** Response', response)
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
-      console.log('ERROR', error)
+      console.log('** ERROR', error)
       return new Hub.ActionResponse({ success: false })
     }
   }
