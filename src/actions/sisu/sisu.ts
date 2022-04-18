@@ -32,7 +32,6 @@ export class SisuAction extends Hub.Action {
       console.log('** Response', response)
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
-      console.log('** ERROR', error)
       return new Hub.ActionResponse({ success: false })
     }
   }
@@ -50,15 +49,18 @@ export class SisuAction extends Hub.Action {
     }
 
     const response = await axios.get('https://dev.sisu.ai/rest/connections', axisoConfig)
-
+    if (!response.data) {
+      throw "Wasn't able to load Sisu connections."
+    }
     const options = response.data.map((connection: any) => {
       return { name: connection.id, label: connection.name}
     })
+
     const form = new Hub.ActionForm()
     form.fields = [{
       label: "Sisu's connections",
       name: "connection",
-      description: "Select the equivalent connection'data-warehouse in Sisu.",
+      description: "Select the Sisu connection where this data is.",
       required: true,
       type: "select",
       options,
