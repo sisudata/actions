@@ -37,7 +37,9 @@ export class SisuAction extends Hub.Action {
     }
   }
 
-  async form() {
+  async form(request: Hub.ActionRequest) {
+    console.log('--   FORM REQUEST', request)
+    console.log('--   FORM REQUEST sisu_api_token', request.params.sisu_api_token)
     const form = new Hub.ActionForm()
     form.fields = [{
       label: "Select connection in Sisu",
