@@ -19,21 +19,24 @@ export class SisuAction extends Hub.Action {
   ]
 
   async execute(request: Hub.ActionRequest) {
-    const stringifyRequest = JSON.stringify(request)
+    // const stringifyRequest = JSON.stringify(request)
     const connectionId = request.formParams.connection
-    const sisuAPIToken = request.params.sisu_api_token
     const requestSQL = request.attachment?.dataJSON.sql
+    const axiosConfig = this.getAxiosConfig(request)
+
     // testStr.replace(/\n/g, ' ')
     console.log('** requestSQL:\n', requestSQL)
-    const url = "https://l9bte2tk86.execute-api.us-west-1.amazonaws.com/default/lookerActionAPI"
-    const body = {
-      dataBuffer: request.attachment && request.attachment.dataBuffer,
-      csvTitle: request.scheduledPlan && request.scheduledPlan.title,
-      query: request.scheduledPlan && request.scheduledPlan.query,
-    }
+    // const url = "https://l9bte2tk86.execute-api.us-west-1.amazonaws.com/default/lookerActionAPI"
+    // const body = {
+    //   dataBuffer: request.attachment && request.attachment.dataBuffer,
+    //   csvTitle: request.scheduledPlan && request.scheduledPlan.title,
+    //   query: request.scheduledPlan && request.scheduledPlan.query,
+    // }
 
     try {
-      await axios.post(url, body)
+      // await axios.post(url, body)
+      const tables = await axios.get(`https://dev.sisu.ai/rest/connections/${connectionId}/tables`, axiosConfig)
+      console.log('--- TABLES:', tables)
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
       return new Hub.ActionResponse({ success: false })
@@ -41,17 +44,7 @@ export class SisuAction extends Hub.Action {
   }
 
   async form(request: Hub.ActionRequest) {
-    const sisuAPIToken = request.params.sisu_api_token
-    if (!sisuAPIToken) {
-      throw "Need an API token."
-    }
-
-    const axisoConfig = {
-      headers: {
-        'Authorization': sisuAPIToken
-      }
-    }
-
+    const axisoConfig = this.getAxiosConfig(request)
     const response = await axios.get('https://dev.sisu.ai/rest/connections', axisoConfig)
     if (!response.data) {
       throw "Wasn't able to load Sisu connections."
@@ -70,6 +63,18 @@ export class SisuAction extends Hub.Action {
       options,
     }]
     return form
+  }
+
+  private getAxiosConfig(request: Hub.ActionRequest) {
+    const sisuAPIToken = request.params.sisu_api_token
+    if (!sisuAPIToken) {
+      throw "Need an API token."
+    }
+    return {
+      headers: {
+        'Authorization': sisuAPIToken
+      }
+    }
   }
 }
 
