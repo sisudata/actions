@@ -21,11 +21,13 @@ export class SisuAction extends Hub.Action {
   async execute(request: Hub.ActionRequest) {
     // const stringifyRequest = JSON.stringify(request)
     const connectionId = request.formParams.connection
-    const requestSQL = request.attachment?.dataJSON.sql
+    const requestSQL: string = request.attachment?.dataJSON.sql
+    const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model || ''
     const axiosConfig = this.getAxiosConfig(request)
 
     // testStr.replace(/\n/g, ' ')
     console.log('** requestSQL:\n', requestSQL)
+    console.log('** requestSQL:\n', requestSQL.indexOf('FROM'))
     // const url = "https://l9bte2tk86.execute-api.us-west-1.amazonaws.com/default/lookerActionAPI"
     // const body = {
     //   dataBuffer: request.attachment && request.attachment.dataBuffer,
@@ -36,7 +38,12 @@ export class SisuAction extends Hub.Action {
     try {
       // await axios.post(url, body)
       const tables = await axios.get(`https://dev.sisu.ai/rest/connections/${connectionId}/tables`, axiosConfig)
+      const tableDB = this.findTableDB(tables.data.tables, tableName)
+      if (!tableDB) {
+        throw "Wasn't able to map a table in Sisu."
+      }
       console.log('--- TABLES:', tables)
+
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
       return new Hub.ActionResponse({ success: false })
@@ -63,6 +70,20 @@ export class SisuAction extends Hub.Action {
       options,
     }]
     return form
+  }
+
+  private findTableDB(tables: string[][], tableName: string) {
+    let tableDB
+    const upperCaseTableName = tableName.toUpperCase()
+    for (let index = 0; index < tables.length; index++) {
+      const table = tables[index];
+      const tableWithUpperCaseInfo = table.map(info => info.toUpperCase())
+      if (tableWithUpperCaseInfo.includes(upperCaseTableName)) {
+        tableDB = tableWithUpperCaseInfo[0]
+        break;
+      }
+    }
+    return tableDB
   }
 
   private getAxiosConfig(request: Hub.ActionRequest) {
