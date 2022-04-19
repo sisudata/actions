@@ -1,6 +1,7 @@
 import * as Hub from "../../hub"
 import axios from "axios"
 
+const TAG = "sisu"
 export class SisuAction extends Hub.Action {
 
   name = "sisu"
@@ -10,6 +11,7 @@ export class SisuAction extends Hub.Action {
   supportedActionTypes = [Hub.ActionType.Cell, Hub.ActionType.Dashboard, Hub.ActionType.Query]
   supportedFormats = [Hub.ActionFormat.JsonDetail]
   supportedFormattings = [Hub.ActionFormatting.Formatted]
+  requiredFields = [{ tag: TAG }]
   params = [
     {
       name: "sisu_api_token",
@@ -20,6 +22,10 @@ export class SisuAction extends Hub.Action {
   ]
 
   async execute(request: Hub.ActionRequest) {
+    console.log('--- REQUEST ------\n', JSON.stringify(request))
+    if (request) {
+      return new Hub.ActionResponse({ success: true })
+    }
     try {
       const tableDB = await this.getTableDB(request)
       const sisuBaseQuery = this.buildSisuBaseQuery(request, tableDB)
