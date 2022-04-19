@@ -93,35 +93,35 @@ export class SisuAction extends Hub.Action {
     return requestSQL.slice(0, requestSQL.indexOf('FROM') + 'FROM'.length) + ` "${tableDB}".` + requestSQL.slice(requestSQL.indexOf('FROM') + ('FROM'.length + 1))
   }
 
-  private async createMetric(request: Hub.ActionRequest, baseQueryId: string) {
-    const axiosConfig = this.getAxiosConfig(request)
-    const currentTime = new Date().toISOString()
-    const metricName = `${currentTime}_${request.scheduledPlan?.title}_metric` || `${currentTime}_metric`
-    const connectionId = request.formParams.connection
-    if (!connectionId) {
-      throw "User needs to select a Sisu connection"
-    }
-    const measure = request.attachment?.dataJSON.fields.measures[0]
-    if (!measure) {
-      throw "No measures in data"
-    }
-    const metricBody = {
-      created_at: currentTime,
-      data_source_id: connectionId,
-      default_calculation: measure.type,
-      desired_direction: measure.sorted.desc ? 'decrease' : 'increase',
-      kpi_column_name: measure.sql,
-      name: metricName,
-      static_base_query_id: baseQueryId
-    }
+  // private async createMetric(request: Hub.ActionRequest, baseQueryId: string) {
+  //   const axiosConfig = this.getAxiosConfig(request)
+  //   const currentTime = new Date().toISOString()
+  //   const metricName = `${currentTime}_${request.scheduledPlan?.title}_metric` || `${currentTime}_metric`
+  //   const connectionId = request.formParams.connection
+  //   if (!connectionId) {
+  //     throw "User needs to select a Sisu connection"
+  //   }
+  //   const measure = request.attachment?.dataJSON.fields.measures[0]
+  //   if (!measure) {
+  //     throw "No measures in data"
+  //   }
+  //   const metricBody = {
+  //     created_at: currentTime,
+  //     data_source_id: connectionId,
+  //     default_calculation: measure.type,
+  //     desired_direction: measure.sorted.desc ? 'decrease' : 'increase',
+  //     kpi_column_name: measure.sql,
+  //     name: metricName,
+  //     static_base_query_id: baseQueryId
+  //   }
     
-    try {
-      const metricRequest = await axios.post('https://dev.sisu.ai/rest/metrics', metricBody, axiosConfig)
-      return metricRequest.data
-    } catch (error) {
-      throw error
-    }
-  }
+  //   try {
+  //     const metricRequest = await axios.post('https://dev.sisu.ai/rest/metrics', metricBody, axiosConfig)
+  //     return metricRequest.data
+  //   } catch (error) {
+  //     throw error
+  //   }
+  // }
 
   private async createQuery(request: Hub.ActionRequest, queryString: string) {
     const axiosConfig = this.getAxiosConfig(request)
