@@ -119,6 +119,7 @@ export class SisuAction extends Hub.Action {
       const metricRequest = await axios.post('https://dev.sisu.ai/rest/metrics', metricBody, axiosConfig)
       return metricRequest.data
     } catch (error) {
+      console.error('------- ERROR ------', error)
       throw error
     }
   }
