@@ -25,7 +25,8 @@ export class SisuAction extends Hub.Action {
       const sisuBaseQuery = this.buildSisuBaseQuery(request, tableDB)
       const baseQuery= await this.createQuery(request, sisuBaseQuery)
       const metric = await this.createMetric(request, baseQuery.base_query_id)
-      console.log('\n--- metric:', metric)
+      const kda = await this.createKDA(request, metric.metric_id)
+      console.log('\n--- kda:', kda)
 
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
@@ -53,6 +54,24 @@ export class SisuAction extends Hub.Action {
       options,
     }]
     return form
+  }
+  
+  private async createKDA(request: Hub.ActionRequest, metricId: number) {
+    const axiosConfig = this.getAxiosConfig(request)
+    const currentTime = new Date().toISOString()
+    const kdaName = `${currentTime}_${request.scheduledPlan?.title}_kda` || `${currentTime}_kda`
+    const newKDA = {
+      name: kdaName
+    }
+
+    try {
+      // TODO, dynamic project selection
+      const kdaRequest = await axios.post(`https://dev.sisu.ai/rest/projects/951/metrics/${metricId}/analyses`, newKDA, axiosConfig)
+      return kdaRequest.data
+    } catch (error) {
+      console.error('------- ERROR ------', error)
+      throw error
+    }
   }
 
   private async getTableDB(request: Hub.ActionRequest) {
