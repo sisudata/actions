@@ -26,7 +26,7 @@ export class SisuAction extends Hub.Action {
       const baseQuery= await this.createQuery(request, sisuBaseQuery)
       const metric = await this.createMetric(request, baseQuery.base_query_id)
       const kda = await this.createKDA(request, metric.metric_id)
-      console.log('\n--- kda:', kda)
+      this.runKDA(request, kda.analysis_id)
 
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
@@ -54,6 +54,16 @@ export class SisuAction extends Hub.Action {
       options,
     }]
     return form
+  }
+
+  private async runKDA(request: Hub.ActionRequest, analysisId: number) {
+    const axiosConfig = this.getAxiosConfig(request)
+    try {
+      await axios.post(`https://dev.sisu.ai/rest/analyses/${analysisId}/results`, {}, axiosConfig)
+    } catch (error) {
+      console.error('------- ERROR ------', error)
+      throw error
+    }
   }
   
   private async createKDA(request: Hub.ActionRequest, metricId: number) {
