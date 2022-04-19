@@ -22,9 +22,11 @@ export class SisuAction extends Hub.Action {
   async execute(request: Hub.ActionRequest) {
     try {
       const tableDB = await this.getTableDB(request)
+      console.log('\n--- tableDB -----:', tableDB)
       const sisuBaseQuery = this.buildSisuBaseQuery(request, tableDB)
+      console.log('\n--- sisuBaseQuery ------:', sisuBaseQuery)
       const baseQuery= await this.createQuery(request, sisuBaseQuery)
-      console.log('\n--- baseQuery:', baseQuery)
+      console.log('\n--- baseQuery -------:', baseQuery)
       // const metric = await this.createMetric(request, baseQuery.base_query_id)
       // console.log('\n--- metric:', metric)
 
