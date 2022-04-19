@@ -1,5 +1,11 @@
 import * as Hub from "../../hub"
 import axios from "axios"
+
+interface AxiosConfig {
+  headers: {
+    Authorization: string;
+  };
+}
 export class SisuAction extends Hub.Action {
 
   name = "sisu"
@@ -20,30 +26,22 @@ export class SisuAction extends Hub.Action {
 
   async execute(request: Hub.ActionRequest) {
     // const stringifyRequest = JSON.stringify(request)
-    const connectionId = request.formParams.connection
+    const connectionId: string = request.formParams.connection || ''
     const requestSQL: string = request.attachment?.dataJSON.sql
+    const runAt: string = request.attachment?.dataJSON.runat
     const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model || ''
+    const queryName = `${request.scheduledPlan?.title} - ${runAt}` || `New Metrics - ${runAt}`
     const axiosConfig = this.getAxiosConfig(request)
 
-    // testStr.replace(/\n/g, ' ')
-    console.log('** requestSQL:\n', requestSQL)
-    console.log('** requestSQL:\n', requestSQL.indexOf('FROM'))
-    // const url = "https://l9bte2tk86.execute-api.us-west-1.amazonaws.com/default/lookerActionAPI"
-    // const body = {
-    //   dataBuffer: request.attachment && request.attachment.dataBuffer,
-    //   csvTitle: request.scheduledPlan && request.scheduledPlan.title,
-    //   query: request.scheduledPlan && request.scheduledPlan.query,
-    // }
-
     try {
-      // await axios.post(url, body)
       const tables = await axios.get(`https://dev.sisu.ai/rest/connections/${connectionId}/tables`, axiosConfig)
       const tableDB = this.findTableDB(tables.data.tables, tableName)
       if (!tableDB) {
-        throw "Wasn't able to map a table in Sisu."
+        throw "Wasn't able to find a table in Sisu."
       }
       const newSQL = requestSQL.slice(0, requestSQL.indexOf('FROM') + 'FROM'.length) + ` "${tableDB}".` + requestSQL.slice(requestSQL.indexOf('FROM') + ('FROM'.length + 1))
-      console.log('--- newSQL:', newSQL)
+      const baseQuery = await this.createQuery(newSQL, queryName, connectionId, axiosConfig)
+      console.log('--- baseQuery:', baseQuery)
 
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
@@ -58,7 +56,7 @@ export class SisuAction extends Hub.Action {
       throw "Wasn't able to load Sisu connections."
     }
     const options = response.data.map((connection: any) => {
-      return { name: connection.id, label: connection.name}
+      return { name: connection.id, label: connection.name }
     })
 
     const form = new Hub.ActionForm()
@@ -71,6 +69,20 @@ export class SisuAction extends Hub.Action {
       options,
     }]
     return form
+  }
+
+  private async createQuery(queryString: string, queryName: string, connectionId: string, axiosConfig: AxiosConfig) {
+    try {
+      const baseQuery = await axios.post(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`,
+        {
+          name: queryName,
+          query_string: queryString
+        }, axiosConfig)
+      return baseQuery
+    } catch (error) {
+      console.error(error)
+      throw "Error creating a query."
+    }
   }
 
   private findTableDB(tables: string[][], tableName: string) {
