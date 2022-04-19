@@ -22,13 +22,10 @@ export class SisuAction extends Hub.Action {
   async execute(request: Hub.ActionRequest) {
     try {
       const tableDB = await this.getTableDB(request)
-      console.log('\n--- tableDB -----:', tableDB)
       const sisuBaseQuery = this.buildSisuBaseQuery(request, tableDB)
-      console.log('\n--- sisuBaseQuery ------:', sisuBaseQuery)
       const baseQuery= await this.createQuery(request, sisuBaseQuery)
-      console.log('\n--- baseQuery -------:', baseQuery)
-      // const metric = await this.createMetric(request, baseQuery.base_query_id)
-      // console.log('\n--- metric:', metric)
+      const metric = await this.createMetric(request, baseQuery.base_query_id)
+      console.log('\n--- metric:', metric)
 
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
@@ -93,35 +90,38 @@ export class SisuAction extends Hub.Action {
     return requestSQL.slice(0, requestSQL.indexOf('FROM') + 'FROM'.length) + ` "${tableDB}".` + requestSQL.slice(requestSQL.indexOf('FROM') + ('FROM'.length + 1))
   }
 
-  // private async createMetric(request: Hub.ActionRequest, baseQueryId: string) {
-  //   const axiosConfig = this.getAxiosConfig(request)
-  //   const currentTime = new Date().toISOString()
-  //   const metricName = `${currentTime}_${request.scheduledPlan?.title}_metric` || `${currentTime}_metric`
-  //   const connectionId = request.formParams.connection
-  //   if (!connectionId) {
-  //     throw "User needs to select a Sisu connection"
-  //   }
-  //   const measure = request.attachment?.dataJSON.fields.measures[0]
-  //   if (!measure) {
-  //     throw "No measures in data"
-  //   }
-  //   const metricBody = {
-  //     created_at: currentTime,
-  //     data_source_id: connectionId,
-  //     default_calculation: measure.type,
-  //     desired_direction: measure.sorted.desc ? 'decrease' : 'increase',
-  //     kpi_column_name: measure.sql,
-  //     name: metricName,
-  //     static_base_query_id: baseQueryId
-  //   }
+  private async createMetric(request: Hub.ActionRequest, baseQueryId: string) {
+    const axiosConfig = this.getAxiosConfig(request)
+    const currentTime = new Date().toISOString()
+    const metricName = `${currentTime}_${request.scheduledPlan?.title}_metric` || `${currentTime}_metric`
+    const connectionId = request.formParams.connection
+    if (!connectionId) {
+      throw "User needs to select a Sisu connection"
+    }
+    const measure = request.attachment?.dataJSON.fields.measures[0]
+    if (!measure) {
+      throw "No measures in data"
+    }
+    const metricBody = {
+      created_at: currentTime,
+      data_source_id: connectionId,
+      default_calculation: measure.type,
+      desired_direction: measure.sorted.desc ? 'decrease' : 'increase',
+      kpi_column_name: measure.sql,
+      name: metricName,
+      static_base_query_id: baseQueryId,
+      metric_type: 'scalar'
+    }
+
+    console.log('\n----- METRIC BODY ------\n', metricBody)
     
-  //   try {
-  //     const metricRequest = await axios.post('https://dev.sisu.ai/rest/metrics', metricBody, axiosConfig)
-  //     return metricRequest.data
-  //   } catch (error) {
-  //     throw error
-  //   }
-  // }
+    try {
+      const metricRequest = await axios.post('https://dev.sisu.ai/rest/metrics', metricBody, axiosConfig)
+      return metricRequest.data
+    } catch (error) {
+      throw error
+    }
+  }
 
   private async createQuery(request: Hub.ActionRequest, queryString: string) {
     const axiosConfig = this.getAxiosConfig(request)
