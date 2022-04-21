@@ -22,10 +22,10 @@ export class SisuAction extends Hub.Action {
   ]
 
   async execute(request: Hub.ActionRequest) {
-    console.log('--- REQUEST ------\n', JSON.stringify(request))
-    if (request) {
-      return new Hub.ActionResponse({ success: true })
-    }
+    // console.log('--- REQUEST ------\n', JSON.stringify(request))
+    // if (request) {
+    //   return new Hub.ActionResponse({ success: true })
+    // }
     try {
       const tableDB = await this.getTableDB(request)
       const sisuBaseQuery = this.buildSisuBaseQuery(request, tableDB)
