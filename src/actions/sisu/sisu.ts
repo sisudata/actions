@@ -144,7 +144,7 @@ export class SisuAction extends Hub.Action {
       created_at: currentTime,
       data_source_id: connectionId,
       default_calculation: measure.type,
-      desired_direction: measure.sorted.desc ? 'decrease' : 'increase',
+      desired_direction: measure.sorted.desc ? 'increase' : 'decrease',
       kpi_column_name: columnName,
       name: metricName,
       static_base_query_id: baseQueryId,
