@@ -22,10 +22,11 @@ export class SisuAction extends Hub.Action {
   ]
 
   async execute(request: Hub.ActionRequest) {
-    // console.log('--- REQUEST ------\n', JSON.stringify(request))
-    // if (request) {
-    //   return new Hub.ActionResponse({ success: true })
-    // }
+    console.log('--- REQUEST ------\n', JSON.stringify(request))
+    if (request) {
+      return new Hub.ActionResponse({ success: true })
+    }
+
     try {
       const tableDB = await this.getTableDB(request)
       const sisuBaseQuery = this.buildSisuBaseQuery(request, tableDB)
@@ -38,28 +39,6 @@ export class SisuAction extends Hub.Action {
     } catch (error) {
       return new Hub.ActionResponse({ success: false })
     }
-  }
-
-  async form(request: Hub.ActionRequest) {
-    const axisoConfig = this.getAxiosConfig(request)
-    const response = await axios.get('https://dev.sisu.ai/rest/connections', axisoConfig)
-    if (!response.data) {
-      throw "Wasn't able to load Sisu connections."
-    }
-    const options = response.data.map((connection: any) => {
-      return { name: connection.id, label: connection.name }
-    })
-
-    const form = new Hub.ActionForm()
-    form.fields = [{
-      label: "Sisu's connections",
-      name: "connection",
-      description: "Select the Sisu connection where this data is.",
-      required: true,
-      type: "select",
-      options,
-    }]
-    return form
   }
 
   private async runKDA(request: Hub.ActionRequest, analysisId: number) {
@@ -207,6 +186,50 @@ export class SisuAction extends Hub.Action {
         'Authorization': sisuAPIToken
       }
     }
+  }
+
+  private async getSisuConnectionsOptions(request: Hub.ActionRequest) {
+    const axisoConfig = this.getAxiosConfig(request)
+    const response = await axios.get('https://dev.sisu.ai/rest/connections', axisoConfig)
+    if (!response.data) {
+      throw "Wasn't able to load Sisu connections."
+    }
+    return response.data.map((connection: any) => ({ name: connection.id, label: connection.name }))
+  }
+
+  private getMeasuresOptions(request: Hub.ActionRequest) {
+    const { measures } = request.attachment?.dataJSON.fields
+    if (!measures || measures.length < 1) {
+      throw "Not enought data from the action."
+    }
+    return measures.map((measure: any) => ({ name: measure.name, label: measure.name }))
+  }
+
+  async form(request: Hub.ActionRequest) {
+    const connectionOptions = await this.getSisuConnectionsOptions(request)
+    const measureOptions = this.getMeasuresOptions(request)
+
+    const form = new Hub.ActionForm()
+    form.fields = [
+      {
+        label: "Sisu's connections",
+        name: "connection",
+        description: "Select the Sisu connection where this data is.",
+        required: true,
+        type: "select",
+        options: connectionOptions,
+      },
+      {
+        label: "Measure",
+        name: "measure",
+        description: "Select a measure for your KDA.",
+        required: true,
+        type: "select",
+        options: measureOptions,
+        default: measureOptions[0],
+      }
+    ]
+    return form
   }
 }
 
