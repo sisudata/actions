@@ -197,19 +197,8 @@ export class SisuAction extends Hub.Action {
     return response.data.map((connection: any) => ({ name: connection.id, label: connection.name }))
   }
 
-  private getMeasuresOptions(request: Hub.ActionRequest) {
-    console.log('---- FORM Request ---', request)
-    const measures = request.attachment?.dataJSON.fields.measures
-    if (!measures || measures.length < 1) {
-      return [{ name: 'Loading', label: 'Loading' }]
-    }
-    return measures.map((measure: any) => ({ name: measure.name, label: measure.name }))
-  }
-
   async form(request: Hub.ActionRequest) {
     const connectionOptions = await this.getSisuConnectionsOptions(request)
-    const measureOptions = this.getMeasuresOptions(request)
-
     const form = new Hub.ActionForm()
     form.fields = [
       {
@@ -220,15 +209,6 @@ export class SisuAction extends Hub.Action {
         type: "select",
         options: connectionOptions,
       },
-      {
-        label: "Measure",
-        name: "measure",
-        description: "Select a measure for your KDA.",
-        required: true,
-        type: "select",
-        options: measureOptions,
-        default: measureOptions[0],
-      }
     ]
     return form
   }
