@@ -200,7 +200,7 @@ export class SisuAction extends Hub.Action {
   private getMeasuresOptions(request: Hub.ActionRequest) {
     const { measures } = request.attachment?.dataJSON.fields
     if (!measures || measures.length < 1) {
-      throw "Not enought data from the action."
+      return [{ name: 'Loading', label: 'Loading' }]
     }
     return measures.map((measure: any) => ({ name: measure.name, label: measure.name }))
   }
