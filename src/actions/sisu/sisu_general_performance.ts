@@ -5,9 +5,9 @@ const TAG = "sisu"
 export class SisuAction extends Hub.Action {
 
   name = "sisu"
-  label = "Sisu Data - Create New KDA"
+  label = "Create a general performance kda."
   iconName = "sisu/sisu_logo.svg"
-  description = "Send data to Sisu and create a new kda."
+  description = "Send data to Sisu and create a general performance kda."
   supportedActionTypes = [Hub.ActionType.Cell, Hub.ActionType.Dashboard, Hub.ActionType.Query]
   supportedFormats = [Hub.ActionFormat.JsonDetail]
   supportedFormattings = [Hub.ActionFormatting.Formatted]
@@ -198,6 +198,7 @@ export class SisuAction extends Hub.Action {
   }
 
   private getMeasuresOptions(request: Hub.ActionRequest) {
+    console.log('---- FORM Request ---', request)
     const measures = request.attachment?.dataJSON.fields.measures
     if (!measures || measures.length < 1) {
       return [{ name: 'Loading', label: 'Loading' }]
