@@ -198,7 +198,7 @@ export class SisuAction extends Hub.Action {
   }
 
   private getMeasuresOptions(request: Hub.ActionRequest) {
-    const { measures } = request.attachment?.dataJSON.fields
+    const measures = request.attachment?.dataJSON.fields.measures
     if (!measures || measures.length < 1) {
       return [{ name: 'Loading', label: 'Loading' }]
     }
