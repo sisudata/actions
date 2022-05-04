@@ -51,10 +51,8 @@ export class SisuAction extends Hub.Action {
     const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model
     try {
       const customQueries = await axios.get(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, axiosConfig)
-      console.log('**** customQueries', customQueries)
       const lookerAllDimensionsCustomQuery = customQueries.data.find(({ name }: any) => name === `Looker ${tableName} all dimensions`)
       if (lookerAllDimensionsCustomQuery) {
-        console.log('**** lookerAllDimensionsCustomQuery', lookerAllDimensionsCustomQuery)
         const allDimensionsQueryId = lookerAllDimensionsCustomQuery.base_query_id
         const dimensionsRequest = await axios.get(`https://dev.sisu.ai/rest/base_queries/${allDimensionsQueryId}/dimensions`, axiosConfig)
         return dimensionsRequest.data.map((dimension: any) => `${tableInfo[2].toLowerCase()}."${dimension.columnName}"`)
@@ -176,10 +174,10 @@ export class SisuAction extends Hub.Action {
       throw "There is no sql query in data"
     }
     const existingDimensionsMap = this.getExistingDimensionsMap(requestSQL)
+    console.log('---- existingDimensionsMap ----', existingDimensionsMap)
     const nonIncludedDimensions = dimensions.filter((dimension) => !existingDimensionsMap[dimension])
+    const dimensionToSelect = [...nonIncludedDimensions, ...Object.keys(existingDimensionsMap)].join(",")
     const whereStatementSQL = this.getWhereStatement(requestSQL)
-    console.log('---- whereStatementSQL ----', whereStatementSQL)
-    const dimensionToSelect = [...nonIncludedDimensions, ...Object.keys(whereStatementSQL)].join(",")
     const baseQuery = `SELECT ${dimensionToSelect} FROM ${tableInfo[0]}.${tableInfo[1]}.${tableInfo[2]} ${whereStatementSQL}`
     console.log('---- baseQuery ----', baseQuery)
     return baseQuery.trim()
