@@ -31,11 +31,11 @@ export class SisuAction extends Hub.Action {
       const tableInfo = await this.getTableInfo(request)
       const dimensions = await this.getAllDimensionsForTable(request, tableInfo)
       const sisuBaseQuery = this.buildSisuBaseQuery(request, tableInfo, dimensions)
-      const baseQuery = await this.createQuery(request, sisuBaseQuery)
-      if (baseQuery) {
-        console.log('--- baseQuery ------\n', baseQuery)
+      if (sisuBaseQuery) {
+        console.log('--- sisuBaseQuery ------\n', sisuBaseQuery)
         return new Hub.ActionResponse({ success: true })
       }
+      const baseQuery = await this.createQuery(request, sisuBaseQuery)
       const metric = await this.createMetric(request, baseQuery.base_query_id)
       await this.updateDefaultMetricDimensions(request, baseQuery.base_query_id, metric.metric_id)
       const kda = await this.createKDA(request, metric.metric_id)
