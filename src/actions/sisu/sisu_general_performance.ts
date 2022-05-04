@@ -142,22 +142,32 @@ export class SisuAction extends Hub.Action {
     return dimensions.split(',')
   }
 
-  private getExistingDimensionsMap(sql: string) {
+  private getExistingDimensions(sql: string) {
     const existingDimensionsMap: Record<string, boolean> = {}
+    const existingDimensionsList: string[] = []
     const existingDimensions = this.getDimenionsListFromSQL(sql)
     existingDimensions.forEach((dimension) => {
-      const dimensionName = [
-        dimension.indexOf("AVG") >= 0 && this.removeNumericFunctions(dimension, "AVG(", ")"),
-        dimension.substring(dimension.indexOf('purchases."'), dimension.indexOf('AS')).trim()
-      ].find(Boolean)
+      // const dimensionName = [
+      //   dimension.indexOf("AVG") >= 0 && this.removeNumericFunctions(dimension, "AVG(", ")"),
+      //   dimension.substring(dimension.indexOf('purchases."'), dimension.indexOf('AS')).trim()
+      // ].find(Boolean)
+      let dimensionName
+      if (dimension.indexOf("AVG") >= 0) {
+        dimensionName = this.removeNumericFunctions(dimension, "AVG(", ")")
+      } else {
+        dimensionName = dimension.substring(dimension.indexOf('purchases."'), dimension.indexOf('AS')).trim()
+        existingDimensionsList.push(dimension)
+      }
 
       if (typeof dimensionName !== 'string') {
         throw "SQL function not supported."
       }
-
       existingDimensionsMap[dimensionName] = true
     })
-    return existingDimensionsMap
+    return {
+      existingDimensionsMap,
+      existingDimensionsList
+    }
   }
 
   private getWhereStatement(sql: string) {
@@ -173,10 +183,12 @@ export class SisuAction extends Hub.Action {
     if (!requestSQL) {
       throw "There is no sql query in data"
     }
-    const existingDimensionsMap = this.getExistingDimensionsMap(requestSQL)
+    // const [existingDimensionsMap, existingDimensionsList] = this.getExistingDimensions(requestSQL)
+    const {existingDimensionsMap, existingDimensionsList} = this.getExistingDimensions(requestSQL)
     console.log('---- existingDimensionsMap ----', existingDimensionsMap)
+    console.log('---- existingDimensionsList ----', existingDimensionsList)
     const nonIncludedDimensions = dimensions.filter((dimension) => !existingDimensionsMap[dimension])
-    const dimensionToSelect = [...nonIncludedDimensions, ...Object.keys(existingDimensionsMap)].join(",")
+    const dimensionToSelect = [...nonIncludedDimensions, ...existingDimensionsList].join(",")
     const whereStatementSQL = this.getWhereStatement(requestSQL)
     const baseQuery = `SELECT ${dimensionToSelect} FROM ${tableInfo[0]}.${tableInfo[1]}.${tableInfo[2]} ${whereStatementSQL}`
     console.log('---- baseQuery ----', baseQuery)
