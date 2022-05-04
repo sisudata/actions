@@ -66,7 +66,7 @@ export class SisuAction extends Hub.Action {
         const queryRequest = await axios.post(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, newAllDimensionsQuery, axiosConfig)
         const allDimensionsQueryId = queryRequest.data.base_query_id
         const dimensionsRequest = await axios.get(`https://dev.sisu.ai/rest/base_queries/${allDimensionsQueryId}/dimensions`, axiosConfig)
-        return dimensionsRequest.data.map((dimension: any) => `${tableInfo[2].toLowerCase()}.${dimension.columnName}`)
+        return dimensionsRequest.data.map((dimension: any) => `${tableInfo[2].toLowerCase()}."${dimension.columnName}"`)
       }
     } catch (error) {
       console.error('------- ERROR ------', error)
