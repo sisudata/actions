@@ -144,22 +144,29 @@ export class SisuAction extends Hub.Action {
     return dimensions.split(',')
   }
 
-  private manipulateDimension(dimension: string, tableName: string, existingDimensionsList: string[]) {
-    const dimensionName = dimension.substring(dimension.indexOf(`${tableName}."`), dimension.indexOf('AS')).trim()
-    existingDimensionsList.push(dimension.trim())
-    return dimensionName
-  }
+  // private manipulateDimension(dimension: string, tableName: string, existingDimensionsList: string[]) {
+  //   const dimensionName = dimension.substring(dimension.indexOf(`${tableName}."`), dimension.indexOf('AS')).trim()
+  //   existingDimensionsList.push(dimension.trim())
+  //   return dimensionName
+  // }
 
   private getExistingDimensions(sql: string, tableName: string) {
     const existingDimensionsMap: Record<string, boolean> = {}
     const existingDimensionsList: string[] = []
     const existingDimensions = this.getDimenionsListFromSQL(sql)
     existingDimensions.forEach((dimension) => {
-      const dimensionName = [
-        dimension.indexOf("AVG") >= 0 && this.removeNumericFunctions(dimension, "AVG(", ")"),
-        dimension.indexOf("COUNT") >= 0 && this.removeNumericFunctions(dimension, "COUNT(", ")"),
-        this.manipulateDimension(dimension, tableName, existingDimensionsList)
-      ].find(Boolean)
+      // const dimensionName = [
+      //   dimension.indexOf("AVG") >= 0 && this.removeNumericFunctions(dimension, "AVG(", ")"),
+      //   dimension.indexOf("COUNT") >= 0 && this.removeNumericFunctions(dimension, "COUNT(", ")"),
+      //   this.manipulateDimension(dimension, tableName, existingDimensionsList)
+      // ].find(Boolean)
+      let dimensionName
+      if (dimension.indexOf("AVG") >= 0) {
+        dimensionName = this.removeNumericFunctions(dimension, "AVG(", ")")
+      } else {
+        dimensionName = dimension.substring(dimension.indexOf(`${tableName}."`), dimension.indexOf('AS')).trim()
+        existingDimensionsList.push(dimension)
+      }
 
       if (typeof dimensionName !== 'string') {
         throw "SQL function not supported."
