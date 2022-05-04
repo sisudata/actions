@@ -50,7 +50,7 @@ export class SisuAction extends Hub.Action {
   private async getAllDimensionsForTable(request: Hub.ActionRequest, tableInfo: string[]): Promise<string[]> {
     const axiosConfig = this.getAxiosConfig(request)
     const connectionId = request.formParams.connection
-    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view
+    const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model
     try {
       const customQueries = await axios.get(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, axiosConfig)
       const lookerAllDimensionsCustomQuery = customQueries.data.find(({ name }: any) => name === `Looker ${tableName} all dimensions`)
@@ -256,7 +256,7 @@ export class SisuAction extends Hub.Action {
   private async updateDefaultMetricDimensions(request: Hub.ActionRequest, baseQueryId: number, metricId: number) {
     const axiosConfig = this.getAxiosConfig(request)
     const dimensions = request.attachment?.dataJSON.fields.dimensions
-    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view || 'NA'
+    const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model || 'NA'
     if (!dimensions || dimensions.length <= 0) {
       throw "No dimensions in data"
     }
