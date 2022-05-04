@@ -51,9 +51,11 @@ export class SisuAction extends Hub.Action {
     const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model
     try {
       const customQueries = await axios.get(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, axiosConfig)
+      console.log('**** customQueries', customQueries)
       const lookerAllDimensionsCustomQuery = customQueries.data.find(({ name }: any) => name === `Looker ${tableName} all dimensions`)
       if (lookerAllDimensionsCustomQuery) {
-        const allDimensionsQueryId = lookerAllDimensionsCustomQuery.data.base_query_id
+        console.log('**** lookerAllDimensionsCustomQuery', lookerAllDimensionsCustomQuery)
+        const allDimensionsQueryId = lookerAllDimensionsCustomQuery.base_query_id
         const dimensionsRequest = await axios.get(`https://dev.sisu.ai/rest/base_queries/${allDimensionsQueryId}/dimensions`, axiosConfig)
         return dimensionsRequest.data.map((dimension: any) => dimension.columnName)
       } else {
