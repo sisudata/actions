@@ -261,8 +261,6 @@ export class SisuAction extends Hub.Action {
       lookerDimensionsMap[dimension.name] = true
     })
 
-    console.log('---- lookerDimensionsMap ----', lookerDimensionsMap)
-
     try {
       const dimensionsReuqest = await axios.get(`https://dev.sisu.ai/rest/base_queries/${baseQueryId}/dimensions`, axiosConfig)
       const sisuDimensions = dimensionsReuqest.data
@@ -272,10 +270,12 @@ export class SisuAction extends Hub.Action {
           defaultDimensionsIds.push(dimension.id)
         }
       })
+      console.log('--- defaultDimensionsIds', defaultDimensionsIds)
       const body = {
         ids: defaultDimensionsIds,
       }
-      await axios.post(`https://dev.sisu.ai/rest/metrics/${metricId}/default_dimensions`, body, axiosConfig)
+      const defaultDimensionsRequest = await axios.post(`https://dev.sisu.ai/rest/metrics/${metricId}/default_dimensions`, body, axiosConfig)
+      console.log('--- defaultDimensionsRequest', defaultDimensionsRequest.data)
     } catch (error) {
       console.error(error)
       throw "Error creating a query."
