@@ -22,15 +22,19 @@ export class SisuAction extends Hub.Action {
   ]
 
   async execute(request: Hub.ActionRequest) {
-    console.log('--- REQUEST ------\n', JSON.stringify(request))
-    if (request) {
-      return new Hub.ActionResponse({ success: true })
-    }
+    // console.log('--- REQUEST ------\n', JSON.stringify(request))
+    // if (request) {
+    //   return new Hub.ActionResponse({ success: true })
+    // }
 
     try {
-      const tableDB = await this.getTableDB(request)
-      const sisuBaseQuery = this.buildSisuBaseQuery(request, tableDB)
-      const baseQuery= await this.createQuery(request, sisuBaseQuery)
+      const tableInfo = await this.getTableInfo(request)
+      const dimensions = await this.getAllDimensionsForTable(request, tableInfo)
+      const sisuBaseQuery = this.buildSisuBaseQuery(request, tableInfo, dimensions)
+      if (sisuBaseQuery) {
+        return new Hub.ActionResponse({ success: true })
+      }
+      const baseQuery = await this.createQuery(request, sisuBaseQuery)
       const metric = await this.createMetric(request, baseQuery.base_query_id)
       const kda = await this.createKDA(request, metric.metric_id)
       this.runKDA(request, kda.analysis_id)
@@ -38,6 +42,35 @@ export class SisuAction extends Hub.Action {
       return new Hub.ActionResponse({ success: true })
     } catch (error) {
       return new Hub.ActionResponse({ success: false })
+    }
+  }
+
+  private async getAllDimensionsForTable(request: Hub.ActionRequest, tableInfo: string[]): Promise<string[]> {
+    const axiosConfig = this.getAxiosConfig(request)
+    const connectionId = request.formParams.connection
+    const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model
+    try {
+      const customQueries = await axios.get(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, axiosConfig)
+      const lookerAllDimensionsCustomQuery = customQueries.data.find(({ name }: any) => name === `Looker ${tableName} all dimensions`)
+      if (lookerAllDimensionsCustomQuery) {
+        const allDimensionsQueryId = lookerAllDimensionsCustomQuery.data.base_query_id
+        const dimensionsRequest = await axios.get(`https://dev.sisu.ai/rest/base_queries/${allDimensionsQueryId}/dimensions`, axiosConfig)
+        return dimensionsRequest.data.map((dimension: any) => dimension.columnName)
+      } else {
+        const queryName = `Looker ${tableName} all dimensions`
+        const allDimensionsQueryString = `SELECT * FROM ${tableInfo[0]}.${tableInfo[1]}.${tableInfo[2]} LIMIT 1`
+        const newAllDimensionsQuery = {
+          name: queryName,
+          query_string: allDimensionsQueryString
+        }
+        const queryRequest = await axios.post(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, newAllDimensionsQuery, axiosConfig)
+        const allDimensionsQueryId = queryRequest.data.base_query_id
+        const dimensionsRequest = await axios.get(`https://dev.sisu.ai/rest/base_queries/${allDimensionsQueryId}/dimensions`, axiosConfig)
+        return dimensionsRequest.data.map((dimension: any) => `${tableInfo[2].toLowerCase()}.${dimension.columnName}`)
+      }
+    } catch (error) {
+      console.error('------- ERROR ------', error)
+      throw error
     }
   }
 
@@ -50,7 +83,7 @@ export class SisuAction extends Hub.Action {
       throw error
     }
   }
-  
+
   private async createKDA(request: Hub.ActionRequest, metricId: number) {
     const axiosConfig = this.getAxiosConfig(request)
     const currentTime = new Date().toISOString()
@@ -69,7 +102,7 @@ export class SisuAction extends Hub.Action {
     }
   }
 
-  private async getTableDB(request: Hub.ActionRequest) {
+  private async getTableInfo(request: Hub.ActionRequest) {
     const axiosConfig = this.getAxiosConfig(request)
     const connectionId = request.formParams.connection
     const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model
@@ -86,22 +119,67 @@ export class SisuAction extends Hub.Action {
 
     try {
       const tables = await axios.get(`https://dev.sisu.ai/rest/connections/${connectionId}/tables`, axiosConfig)
-      const tableDB = this.findTableDB(tables.data.tables, tableName)
-      if (!tableDB) {
+      const tableInfo = this.findTableInfo(tables.data.tables, tableName)
+      if (!tableInfo) {
         throw "Wasn't able to find a table in Sisu."
       }
-      return tableDB
+      return tableInfo
     } catch (error) {
       throw error
     }
   }
 
-  private buildSisuBaseQuery(request: Hub.ActionRequest, tableDB: string) {
+  private removeNumericFunctions(dimension: string, startStr: string, endStr: string) {
+    const firstHalf = dimension.substring(dimension.indexOf(`${startStr}`) + startStr.length, dimension.lastIndexOf(endStr))
+    const secondHalf = dimension.substring(dimension.lastIndexOf(endStr) + 1)
+    return firstHalf + secondHalf
+  }
+
+  private getDimenionsListFromSQL(sql: string) {
+    const indexOfSelect = sql.indexOf("SELECT") + "SELECT".length
+    const indexOfFrom = sql.indexOf("FROM")
+    const dimensions = sql.substring(indexOfSelect, indexOfFrom).trim()
+    return dimensions.split(',')
+  }
+
+  private getExistingDimensionsMap(sql: string) {
+    const existingDimensionsMap: Record<string, boolean> = {}
+    const existingDimensions = this.getDimenionsListFromSQL(sql)
+    existingDimensions.forEach((dimension) => {
+      const dimensionName = [
+        dimension.indexOf("AVG") >= 0 && this.removeNumericFunctions(dimension, "AVG(", ")"),
+        dimension.substring(dimension.indexOf('purchases."'), dimension.indexOf('AS')).trim()
+      ].find(Boolean)
+
+      if (typeof dimensionName !== 'string') {
+        throw "SQL function not supported."
+      }
+
+      existingDimensionsMap[dimensionName] = true
+    })
+    return existingDimensionsMap
+  }
+
+  private getWhereStatement(sql: string) {
+    const start = sql.indexOf('WHERE')
+    const end = sql.indexOf('GROUP BY')
+    const whereStatement = sql.includes('GROUP BY') ? sql.substring(start, end) : sql.substring(start)
+    return whereStatement.trim()
+  }
+
+  private buildSisuBaseQuery(request: Hub.ActionRequest, tableInfo: string[], dimensions: string[]) {
+    console.log('---- dimensions ----', dimensions)
     const requestSQL: string = request.attachment?.dataJSON.sql
     if (!requestSQL) {
       throw "There is no sql query in data"
     }
-    return requestSQL.slice(0, requestSQL.indexOf('FROM') + 'FROM'.length) + ` "${tableDB}".` + requestSQL.slice(requestSQL.indexOf('FROM') + ('FROM'.length + 1))
+    const existingDimensionsMap = this.getExistingDimensionsMap(requestSQL)
+    const nonIncludedDimensions = dimensions.filter((dimension) => !existingDimensionsMap[dimension])
+    const whereStatementSQL = this.getWhereStatement(requestSQL)
+    const dimensionToSelect = [...nonIncludedDimensions, ...Object.keys(whereStatementSQL)].join(",")
+    const baseQuery = `SELECT ${dimensionToSelect} FROM ${tableInfo[0]}.${tableInfo[1]}.${tableInfo[2]} ${whereStatementSQL}`
+    console.log('---- baseQuery ----', baseQuery)
+    return baseQuery.trim()
   }
 
   private async createMetric(request: Hub.ActionRequest, baseQueryId: string) {
@@ -129,7 +207,7 @@ export class SisuAction extends Hub.Action {
       static_base_query_id: baseQueryId,
       metric_type: 'scalar'
     }
-    
+
     try {
       const metricRequest = await axios.post('https://dev.sisu.ai/rest/metrics', metricBody, axiosConfig)
       return metricRequest.data
@@ -162,14 +240,14 @@ export class SisuAction extends Hub.Action {
     }
   }
 
-  private findTableDB(tables: string[][], tableName: string) {
+  private findTableInfo(tables: string[][], tableName: string) {
     let tableDB
     const upperCaseTableName = tableName.toUpperCase()
     for (let index = 0; index < tables.length; index++) {
       const table = tables[index];
       const tableWithUpperCaseInfo = table.map(info => info.toUpperCase())
       if (tableWithUpperCaseInfo.includes(upperCaseTableName)) {
-        tableDB = tableWithUpperCaseInfo[0]
+        tableDB = tableWithUpperCaseInfo
         break;
       }
     }
