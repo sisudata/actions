@@ -253,7 +253,6 @@ export class SisuAction extends Hub.Action {
   private async updateDefaultMetricDimensions(request: Hub.ActionRequest, baseQueryId: number, metricId: number) {
     const axiosConfig = this.getAxiosConfig(request)
     const dimensions = request.attachment?.dataJSON.fields.dimensions
-    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view || 'NA'
     if (!dimensions || dimensions.length <= 0) {
       throw "No dimensions in data"
     }
@@ -269,9 +268,7 @@ export class SisuAction extends Hub.Action {
       const sisuDimensions = dimensionsReuqest.data
       const defaultDimensionsIds: number[] = []
       sisuDimensions.forEach((dimension: any) => {
-        const dimensionName = `${tableName}.${dimension.columnName}`
-        console.log('** Sisiu dimensionName', dimensionName)
-        if (lookerDimensionsMap[dimensionName]) {
+        if (lookerDimensionsMap[dimension.columnName]) {
           defaultDimensionsIds.push(dimension.id)
         }
       })
