@@ -176,6 +176,7 @@ export class SisuAction extends Hub.Action {
     const existingDimensionsMap = this.getExistingDimensionsMap(requestSQL)
     const nonIncludedDimensions = dimensions.filter((dimension) => !existingDimensionsMap[dimension])
     const whereStatementSQL = this.getWhereStatement(requestSQL)
+    console.log('---- whereStatementSQL ----', whereStatementSQL)
     const dimensionToSelect = [...nonIncludedDimensions, ...Object.keys(whereStatementSQL)].join(",")
     const baseQuery = `SELECT ${dimensionToSelect} FROM ${tableInfo[0]}.${tableInfo[1]}.${tableInfo[2]} ${whereStatementSQL}`
     console.log('---- baseQuery ----', baseQuery)
