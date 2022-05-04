@@ -31,11 +31,9 @@ export class SisuAction extends Hub.Action {
       const tableInfo = await this.getTableInfo(request)
       const dimensions = await this.getAllDimensionsForTable(request, tableInfo)
       const sisuBaseQuery = this.buildSisuBaseQuery(request, tableInfo, dimensions)
-      if (sisuBaseQuery) {
-        return new Hub.ActionResponse({ success: true })
-      }
       const baseQuery = await this.createQuery(request, sisuBaseQuery)
       const metric = await this.createMetric(request, baseQuery.base_query_id)
+      await this.updateDefaultMetricDimensions(request, baseQuery.base_query_id, metric.metric_id)
       const kda = await this.createKDA(request, metric.metric_id)
       this.runKDA(request, kda.analysis_id)
 
@@ -48,7 +46,7 @@ export class SisuAction extends Hub.Action {
   private async getAllDimensionsForTable(request: Hub.ActionRequest, tableInfo: string[]): Promise<string[]> {
     const axiosConfig = this.getAxiosConfig(request)
     const connectionId = request.formParams.connection
-    const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model
+    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view
     try {
       const customQueries = await axios.get(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, axiosConfig)
       const lookerAllDimensionsCustomQuery = customQueries.data.find(({ name }: any) => name === `Looker ${tableName} all dimensions`)
@@ -142,22 +140,22 @@ export class SisuAction extends Hub.Action {
     return dimensions.split(',')
   }
 
-  private getExistingDimensions(sql: string) {
+  private manipulateDimension(dimension: string, tableName: string, existingDimensionsList: string[]) {
+    const dimensionName = dimension.substring(dimension.indexOf(`${tableName}."`), dimension.indexOf('AS')).trim()
+    existingDimensionsList.push(dimension.trim())
+    return dimensionName
+  }
+
+  private getExistingDimensions(sql: string, tableName: string) {
     const existingDimensionsMap: Record<string, boolean> = {}
     const existingDimensionsList: string[] = []
     const existingDimensions = this.getDimenionsListFromSQL(sql)
     existingDimensions.forEach((dimension) => {
-      // const dimensionName = [
-      //   dimension.indexOf("AVG") >= 0 && this.removeNumericFunctions(dimension, "AVG(", ")"),
-      //   dimension.substring(dimension.indexOf('purchases."'), dimension.indexOf('AS')).trim()
-      // ].find(Boolean)
-      let dimensionName
-      if (dimension.indexOf("AVG") >= 0) {
-        dimensionName = this.removeNumericFunctions(dimension, "AVG(", ")")
-      } else {
-        dimensionName = dimension.substring(dimension.indexOf('purchases."'), dimension.indexOf('AS')).trim()
-        existingDimensionsList.push(dimension)
-      }
+      const dimensionName = [
+        dimension.indexOf("AVG") >= 0 && this.removeNumericFunctions(dimension, "AVG(", ")"),
+        dimension.indexOf("COUNT") >= 0 && this.removeNumericFunctions(dimension, "COUNT(", ")"),
+        this.manipulateDimension(dimension, tableName, existingDimensionsList)
+      ].find(Boolean)
 
       if (typeof dimensionName !== 'string') {
         throw "SQL function not supported."
@@ -178,20 +176,18 @@ export class SisuAction extends Hub.Action {
   }
 
   private buildSisuBaseQuery(request: Hub.ActionRequest, tableInfo: string[], dimensions: string[]) {
-    console.log('---- dimensions ----', dimensions)
     const requestSQL: string = request.attachment?.dataJSON.sql
+    const tableDB = tableInfo[0]
+    const tablePrivacy = tableInfo[1]
+    const tableName = tableInfo[2]
     if (!requestSQL) {
       throw "There is no sql query in data"
     }
-    // const [existingDimensionsMap, existingDimensionsList] = this.getExistingDimensions(requestSQL)
-    const {existingDimensionsMap, existingDimensionsList} = this.getExistingDimensions(requestSQL)
-    console.log('---- existingDimensionsMap ----', existingDimensionsMap)
-    console.log('---- existingDimensionsList ----', existingDimensionsList)
+    const {existingDimensionsMap, existingDimensionsList} = this.getExistingDimensions(requestSQL, tableName)
     const nonIncludedDimensions = dimensions.filter((dimension) => !existingDimensionsMap[dimension])
     const dimensionToSelect = [...nonIncludedDimensions, ...existingDimensionsList].join(",")
     const whereStatementSQL = this.getWhereStatement(requestSQL)
-    const baseQuery = `SELECT ${dimensionToSelect} FROM ${tableInfo[0]}.${tableInfo[1]}.${tableInfo[2]} ${whereStatementSQL}`
-    console.log('---- baseQuery ----', baseQuery)
+    const baseQuery = `SELECT ${dimensionToSelect} FROM ${tableDB}.${tablePrivacy}.${tableName} ${whereStatementSQL}`
     return baseQuery.trim()
   }
 
@@ -247,6 +243,42 @@ export class SisuAction extends Hub.Action {
     try {
       const queryRequest = await axios.post(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, newBaseQuery, axiosConfig)
       return queryRequest.data
+    } catch (error) {
+      console.error(error)
+      throw "Error creating a query."
+    }
+  }
+
+  private async updateDefaultMetricDimensions(request: Hub.ActionRequest, baseQueryId: number, metricId: number) {
+    const axiosConfig = this.getAxiosConfig(request)
+    const dimensions = request.attachment?.dataJSON.fields.dimensions
+    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view || 'NA'
+    if (!dimensions || dimensions.length <= 0) {
+      throw "No dimensions in data"
+    }
+    const lookerDimensionsMap: Record<string, boolean> = {}
+    dimensions.forEach((dimension: Record<string, string>) => {
+      const dimensionName = dimension.sql.replace("${TABLE}", tableName).trim()
+      lookerDimensionsMap[dimensionName] = true
+    })
+
+    console.log('---- lookerDimensionsMap ----', lookerDimensionsMap)
+
+    try {
+      const dimensionsReuqest = await axios.get(`https://dev.sisu.ai/rest/base_queries/${baseQueryId}/dimensions`, axiosConfig)
+      const sisuDimensions = dimensionsReuqest.data
+      const defaultDimensionsIds: number[] = []
+      sisuDimensions.forEach((dimension: any) => {
+        const dimensionName = `${tableName}."${dimension.columnName}"`
+        console.log('** Sisiu dimensionName', dimensionName)
+        if (lookerDimensionsMap[dimensionName]) {
+          defaultDimensionsIds.push(dimension.id)
+        }
+      })
+      const body = {
+        ids: defaultDimensionsIds,
+      }
+      await axios.post(`https://dev.sisu.ai/rest/metrics/${metricId}/default_dimensions`, body, axiosConfig)
     } catch (error) {
       console.error(error)
       throw "Error creating a query."
