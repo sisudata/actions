@@ -57,7 +57,7 @@ export class SisuAction extends Hub.Action {
         console.log('**** lookerAllDimensionsCustomQuery', lookerAllDimensionsCustomQuery)
         const allDimensionsQueryId = lookerAllDimensionsCustomQuery.base_query_id
         const dimensionsRequest = await axios.get(`https://dev.sisu.ai/rest/base_queries/${allDimensionsQueryId}/dimensions`, axiosConfig)
-        return dimensionsRequest.data.map((dimension: any) => dimension.columnName)
+        return dimensionsRequest.data.map((dimension: any) => `${tableInfo[2].toLowerCase()}."${dimension.columnName}"`)
       } else {
         const queryName = `Looker ${tableName} all dimensions`
         const allDimensionsQueryString = `SELECT * FROM ${tableInfo[0]}.${tableInfo[1]}.${tableInfo[2]} LIMIT 1`
