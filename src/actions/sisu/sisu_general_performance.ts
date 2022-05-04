@@ -46,7 +46,7 @@ export class SisuAction extends Hub.Action {
   private async getAllDimensionsForTable(request: Hub.ActionRequest, tableInfo: string[]): Promise<string[]> {
     const axiosConfig = this.getAxiosConfig(request)
     const connectionId = request.formParams.connection
-    const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model
+    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view
     try {
       const customQueries = await axios.get(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, axiosConfig)
       const lookerAllDimensionsCustomQuery = customQueries.data.find(({ name }: any) => name === `Looker ${tableName} all dimensions`)
@@ -103,7 +103,7 @@ export class SisuAction extends Hub.Action {
   private async getTableInfo(request: Hub.ActionRequest) {
     const axiosConfig = this.getAxiosConfig(request)
     const connectionId = request.formParams.connection
-    const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model
+    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view
 
     // TODO - move to a validate function using enums for params
     // and it will ahve its error messages
@@ -253,14 +253,13 @@ export class SisuAction extends Hub.Action {
   private async updateDefaultMetricDimensions(request: Hub.ActionRequest, baseQueryId: number, metricId: number) {
     const axiosConfig = this.getAxiosConfig(request)
     const dimensions = request.attachment?.dataJSON.fields.dimensions
-    const tableName = request.scheduledPlan?.query?.view || request.scheduledPlan?.query?.model || 'NA'
+    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view || 'NA'
     if (!dimensions || dimensions.length <= 0) {
       throw "No dimensions in data"
     }
     const lookerDimensionsMap: Record<string, boolean> = {}
     dimensions.forEach((dimension: Record<string, string>) => {
-      const dimensionName = dimension.sql.replace("${TABLE}", tableName).trim()
-      lookerDimensionsMap[dimensionName] = true
+      lookerDimensionsMap[dimension.name] = true
     })
 
     console.log('---- lookerDimensionsMap ----', lookerDimensionsMap)
@@ -270,7 +269,7 @@ export class SisuAction extends Hub.Action {
       const sisuDimensions = dimensionsReuqest.data
       const defaultDimensionsIds: number[] = []
       sisuDimensions.forEach((dimension: any) => {
-        const dimensionName = `${tableName}."${dimension.columnName}"`
+        const dimensionName = `${tableName}.${dimension.columnName}`
         console.log('** Sisiu dimensionName', dimensionName)
         if (lookerDimensionsMap[dimensionName]) {
           defaultDimensionsIds.push(dimension.id)
