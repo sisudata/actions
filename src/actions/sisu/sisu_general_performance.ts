@@ -276,6 +276,9 @@ export class SisuAction extends Hub.Action {
       }
       const defaultDimensionsRequest = await axios.post(`https://dev.sisu.ai/rest/metrics/${metricId}/default_dimensions`, body, axiosConfig)
       console.log('--- defaultDimensionsRequest', defaultDimensionsRequest.data)
+      const newDefaultDimensions = await axios.get(`https://dev.sisu.ai/rest/metrics/${metricId}/default_dimensions`, axiosConfig)
+      console.log('--- newDefaultDimensions', newDefaultDimensions)
+      return 
     } catch (error) {
       console.error(error)
       throw "Error creating a query."
