@@ -31,10 +31,6 @@ export class SisuAction extends Hub.Action {
       const tableInfo = await this.getTableInfo(request)
       const dimensions = await this.getAllDimensionsForTable(request, tableInfo)
       const sisuBaseQuery = this.buildSisuBaseQuery(request, tableInfo, dimensions)
-      if (sisuBaseQuery) {
-        console.log('--- sisuBaseQuery ------\n', sisuBaseQuery)
-        return new Hub.ActionResponse({ success: true })
-      }
       const baseQuery = await this.createQuery(request, sisuBaseQuery)
       const metric = await this.createMetric(request, baseQuery.base_query_id)
       await this.updateDefaultMetricDimensions(request, baseQuery.base_query_id, metric.metric_id)
@@ -147,25 +143,16 @@ export class SisuAction extends Hub.Action {
     return dimensions.split(',')
   }
 
-  // private manipulateDimension(dimension: string, tableName: string, existingDimensionsList: string[]) {
-  //   const dimensionName = dimension.substring(dimension.indexOf(`${tableName}."`), dimension.indexOf('AS')).trim()
-  //   existingDimensionsList.push(dimension.trim())
-  //   return dimensionName
-  // }
-
   private getExistingDimensions(sql: string, tableName: string) {
     const existingDimensionsMap: Record<string, boolean> = {}
     const existingDimensionsList: string[] = []
     const existingDimensions = this.getDimenionsListFromSQL(sql)
     existingDimensions.forEach((dimension) => {
-      // const dimensionName = [
-      //   dimension.indexOf("AVG") >= 0 && this.removeNumericFunctions(dimension, "AVG(", ")", existingDimensionsList),
-      //   dimension.indexOf("COUNT") >= 0 && this.removeNumericFunctions(dimension, "COUNT(", ")", existingDimensionsList),
-      //   this.manipulateDimension(dimension, tableName, existingDimensionsList)
-      // ].find(Boolean)
       let dimensionName
       if (dimension.indexOf("AVG") >= 0) {
         dimensionName = this.removeNumericFunctions(dimension, "AVG(", existingDimensionsList)
+      } else if (dimension.indexOf("COUNT") >= 0) {
+        dimensionName = this.removeNumericFunctions(dimension, "COUNT(", existingDimensionsList)
       } else {
         dimensionName = dimension.substring(dimension.indexOf(`${tableName}."`), dimension.indexOf('AS')).trim()
         existingDimensionsList.push(dimension)
