@@ -21,53 +21,85 @@ export class SisuAction extends Hub.Action {
     }
   ]
 
-  async execute(request: Hub.ActionRequest) {
-    // console.log('--- REQUEST ------\n', JSON.stringify(request))
-    // if (request) {
-    //   return new Hub.ActionResponse({ success: true })
-    // }
+  private getAxiosConfig(request: Hub.ActionRequest) {
+    const sisuAPIToken = request.params.sisu_api_token
+    if (!sisuAPIToken) {
+      throw "Need an API token."
+    }
+    return {
+      headers: {
+        'Authorization': sisuAPIToken
+      }
+    }
+  }
 
+  private async getCustomQueries(request: Hub.ActionRequest): Promise<Record<string, any>[]> {
+    const axiosConfig = this.getAxiosConfig(request)
+    const connectionId = request.formParams.connection
     try {
-      const tableInfo = await this.getTableInfo(request)
-      const dimensions = await this.getAllDimensionsForTable(request, tableInfo)
-      const sisuBaseQuery = this.buildSisuBaseQuery(request, tableInfo, dimensions)
-      const baseQuery = await this.createQuery(request, sisuBaseQuery)
-      const metric = await this.createMetric(request, baseQuery.base_query_id)
-      await this.updateDefaultMetricDimensions(request, baseQuery.base_query_id, metric.metric_id)
-      const kda = await this.createKDA(request, metric.metric_id)
-      this.runKDA(request, kda.analysis_id)
-
-      return new Hub.ActionResponse({ success: true })
+      const customQueriesRequest = await axios.get(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, axiosConfig)
+      return customQueriesRequest.data
     } catch (error) {
-      return new Hub.ActionResponse({ success: false })
+      throw error
+    }
+  }
+
+  private async getSisuQueryDimensions(request: Hub.ActionRequest, queryId: number) {
+    const axiosConfig = this.getAxiosConfig(request)
+    try {
+      const dimensionsRequest = await axios.get(`https://dev.sisu.ai/rest/base_queries/${queryId}/dimensions`, axiosConfig)
+      return dimensionsRequest.data
+    } catch (error) {
+      throw error
+    }
+  }
+  private async createAllDimensionsQuery(request: Hub.ActionRequest, tableInfo: string[]) {
+    const axiosConfig = this.getAxiosConfig(request)
+    const connectionId = request.formParams.connection
+    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view
+    const queryName = `Looker ${tableName} all dimensions`
+    const allDimensionsQueryString = `SELECT * FROM ${tableInfo[0]}.${tableInfo[1]}.${tableInfo[2]} LIMIT 1`
+    const newAllDimensionsQuery = {
+      name: queryName,
+      query_string: allDimensionsQueryString
+    }
+    try {
+      const queryRequest = await axios.post(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, newAllDimensionsQuery, axiosConfig)
+      return queryRequest.data
+    } catch (error) {
+      
+    }
+  }
+
+  private async getAllDimensionsQuery(request: Hub.ActionRequest) {
+    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view
+    try {
+      const customQueries = await this.getCustomQueries(request)
+      return customQueries.find(({ name }: Record<string, any>) => name === `Looker ${tableName} all dimensions`)
+    } catch (error) {
+      throw error
+    }
+  }
+
+  private async listOfDimensionNames(request: Hub.ActionRequest, queryId: number, tableInfo: string[]) {
+    try {
+      const dimensionsRequest = await this.getSisuQueryDimensions(request, queryId)
+      return dimensionsRequest.data.map((dimension: any) => `${tableInfo[2].toLowerCase()}."${dimension.columnName}"`)
+    } catch (error) {
+      throw error
     }
   }
 
   private async getAllDimensionsForTable(request: Hub.ActionRequest, tableInfo: string[]): Promise<string[]> {
-    const axiosConfig = this.getAxiosConfig(request)
-    const connectionId = request.formParams.connection
-    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view
     try {
-      const customQueries = await axios.get(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, axiosConfig)
-      const lookerAllDimensionsCustomQuery = customQueries.data.find(({ name }: any) => name === `Looker ${tableName} all dimensions`)
-      if (lookerAllDimensionsCustomQuery) {
-        const allDimensionsQueryId = lookerAllDimensionsCustomQuery.base_query_id
-        const dimensionsRequest = await axios.get(`https://dev.sisu.ai/rest/base_queries/${allDimensionsQueryId}/dimensions`, axiosConfig)
-        return dimensionsRequest.data.map((dimension: any) => `${tableInfo[2].toLowerCase()}."${dimension.columnName}"`)
+      const allDimensionsQuery = await this.getAllDimensionsQuery(request)
+      if (allDimensionsQuery) {
+        return await this.listOfDimensionNames(request, allDimensionsQuery.base_query_id, tableInfo)
       } else {
-        const queryName = `Looker ${tableName} all dimensions`
-        const allDimensionsQueryString = `SELECT * FROM ${tableInfo[0]}.${tableInfo[1]}.${tableInfo[2]} LIMIT 1`
-        const newAllDimensionsQuery = {
-          name: queryName,
-          query_string: allDimensionsQueryString
-        }
-        const queryRequest = await axios.post(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, newAllDimensionsQuery, axiosConfig)
-        const allDimensionsQueryId = queryRequest.data.base_query_id
-        const dimensionsRequest = await axios.get(`https://dev.sisu.ai/rest/base_queries/${allDimensionsQueryId}/dimensions`, axiosConfig)
-        return dimensionsRequest.data.map((dimension: any) => `${tableInfo[2].toLowerCase()}."${dimension.columnName}"`)
+        const newAllDimensionsQuery = await this.createAllDimensionsQuery(request, tableInfo)
+        return await this.listOfDimensionNames(request, newAllDimensionsQuery.base_query_id, tableInfo)
       }
     } catch (error) {
-      console.error('------- ERROR ------', error)
       throw error
     }
   }
@@ -77,7 +109,6 @@ export class SisuAction extends Hub.Action {
     try {
       await axios.post(`https://dev.sisu.ai/rest/analyses/${analysisId}/results`, {}, axiosConfig)
     } catch (error) {
-      console.error('------- ERROR ------', error)
       throw error
     }
   }
@@ -94,34 +125,6 @@ export class SisuAction extends Hub.Action {
       // TODO, dynamic project selection
       const kdaRequest = await axios.post(`https://dev.sisu.ai/rest/projects/951/metrics/${metricId}/analyses`, newKDA, axiosConfig)
       return kdaRequest.data
-    } catch (error) {
-      console.error('------- ERROR ------', error)
-      throw error
-    }
-  }
-
-  private async getTableInfo(request: Hub.ActionRequest) {
-    const axiosConfig = this.getAxiosConfig(request)
-    const connectionId = request.formParams.connection
-    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view
-
-    // TODO - move to a validate function using enums for params
-    // and it will ahve its error messages
-    if (!connectionId) {
-      throw "User needs to select a Sisu connection"
-    }
-
-    if (!tableName) {
-      throw "There is no table name in the data"
-    }
-
-    try {
-      const tables = await axios.get(`https://dev.sisu.ai/rest/connections/${connectionId}/tables`, axiosConfig)
-      const tableInfo = this.findTableInfo(tables.data.tables, tableName)
-      if (!tableInfo) {
-        throw "Wasn't able to find a table in Sisu."
-      }
-      return tableInfo
     } catch (error) {
       throw error
     }
@@ -222,7 +225,6 @@ export class SisuAction extends Hub.Action {
       const metricRequest = await axios.post('https://dev.sisu.ai/rest/metrics', metricBody, axiosConfig)
       return metricRequest.data
     } catch (error) {
-      console.error('------- ERROR ------', error)
       throw error
     }
   }
@@ -275,9 +277,17 @@ export class SisuAction extends Hub.Action {
       }
       await axios.post(`https://dev.sisu.ai/rest/metrics/${metricId}/default_dimensions`, body, axiosConfig)
     } catch (error) {
-      console.error(error)
       throw "Error creating a query."
     }
+  }
+
+  private async getSisuConnectionsOptions(request: Hub.ActionRequest) {
+    const axisoConfig = this.getAxiosConfig(request)
+    const response = await axios.get('https://dev.sisu.ai/rest/connections', axisoConfig)
+    if (!response.data) {
+      throw "Wasn't able to load Sisu connections."
+    }
+    return response.data.map((connection: any) => ({ name: connection.id, label: connection.name }))
   }
 
   private findTableInfo(tables: string[][], tableName: string) {
@@ -294,25 +304,47 @@ export class SisuAction extends Hub.Action {
     return tableDB
   }
 
-  private getAxiosConfig(request: Hub.ActionRequest) {
-    const sisuAPIToken = request.params.sisu_api_token
-    if (!sisuAPIToken) {
-      throw "Need an API token."
+  private async getTableInfo(request: Hub.ActionRequest) {
+    const axiosConfig = this.getAxiosConfig(request)
+    const connectionId = request.formParams.connection
+    const tableName = request.scheduledPlan?.query?.model || request.scheduledPlan?.query?.view
+
+    if (!connectionId) {
+      throw "User needs to select a Sisu connection"
     }
-    return {
-      headers: {
-        'Authorization': sisuAPIToken
+
+    if (!tableName) {
+      throw "There is no table name in the data"
+    }
+
+    try {
+      const tables = await axios.get(`https://dev.sisu.ai/rest/connections/${connectionId}/tables`, axiosConfig)
+      const tableInfo = this.findTableInfo(tables.data.tables, tableName)
+      if (!tableInfo) {
+        throw "Wasn't able to find a table in Sisu."
       }
+      return tableInfo
+    } catch (error) {
+      throw error
     }
   }
 
-  private async getSisuConnectionsOptions(request: Hub.ActionRequest) {
-    const axisoConfig = this.getAxiosConfig(request)
-    const response = await axios.get('https://dev.sisu.ai/rest/connections', axisoConfig)
-    if (!response.data) {
-      throw "Wasn't able to load Sisu connections."
+  async execute(request: Hub.ActionRequest) {
+    try {
+      const tableInfo = await this.getTableInfo(request)
+      const dimensions = await this.getAllDimensionsForTable(request, tableInfo)
+      const sisuBaseQuery = this.buildSisuBaseQuery(request, tableInfo, dimensions)
+      const baseQuery = await this.createQuery(request, sisuBaseQuery)
+      const metric = await this.createMetric(request, baseQuery.base_query_id)
+      await this.updateDefaultMetricDimensions(request, baseQuery.base_query_id, metric.metric_id)
+      const kda = await this.createKDA(request, metric.metric_id)
+      await this.runKDA(request, kda.analysis_id)
+
+      return new Hub.ActionResponse({ success: true })
+    } catch (error) {
+      console.error(error)
+      return new Hub.ActionResponse({ success: false })
     }
-    return response.data.map((connection: any) => ({ name: connection.id, label: connection.name }))
   }
 
   async form(request: Hub.ActionRequest) {
