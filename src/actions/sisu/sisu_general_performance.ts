@@ -84,7 +84,7 @@ export class SisuAction extends Hub.Action {
   private async listOfDimensionNames(request: Hub.ActionRequest, queryId: number, tableInfo: string[]) {
     try {
       const dimensionsRequest = await this.getSisuQueryDimensions(request, queryId)
-      return dimensionsRequest.data.map((dimension: any) => `${tableInfo[2].toLowerCase()}."${dimension.columnName}"`)
+      return dimensionsRequest.map((dimension: any) => `${tableInfo[2].toLowerCase()}."${dimension.columnName}"`)
     } catch (error) {
       throw error
     }
