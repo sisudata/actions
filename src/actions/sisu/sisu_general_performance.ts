@@ -335,6 +335,7 @@ export class SisuAction extends Hub.Action {
       const dimensions = await this.getAllDimensionsForTable(request, tableInfo)
       const sisuBaseQuery = this.buildSisuBaseQuery(request, tableInfo, dimensions)
       const baseQuery = await this.createQuery(request, sisuBaseQuery)
+      console.log('***** baseQuery', baseQuery)
       const metric = await this.createMetric(request, baseQuery.base_query_id)
       await this.updateDefaultMetricDimensions(request, baseQuery.base_query_id, metric.metric_id)
       const kda = await this.createKDA(request, metric.metric_id)
