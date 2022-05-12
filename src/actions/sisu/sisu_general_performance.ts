@@ -92,6 +92,7 @@ export class SisuAction extends Hub.Action {
   private async getAllDimensionsForTable(request: Hub.ActionRequest, tableInfo: string[]): Promise<string[]> {
     try {
       const allDimensionsQuery = await this.getAllDimensionsQuery(request)
+      console.log('****** allDimensionsQuery', allDimensionsQuery)
       if (allDimensionsQuery) {
         return await this.listOfDimensionNames(request, allDimensionsQuery.base_query_id, tableInfo)
       } else {
