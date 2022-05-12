@@ -1,7 +1,6 @@
 import * as Hub from "../../hub"
 import axios from "axios"
 
-const TAG = "sisu"
 export class SisuAction extends Hub.Action {
 
   name = "sisu"
@@ -11,7 +10,6 @@ export class SisuAction extends Hub.Action {
   supportedActionTypes = [Hub.ActionType.Cell, Hub.ActionType.Dashboard, Hub.ActionType.Query]
   supportedFormats = [Hub.ActionFormat.JsonDetail]
   supportedFormattings = [Hub.ActionFormatting.Formatted]
-  requiredFields = [{ tag: TAG }]
   params = [
     {
       name: "sisu_api_token",
@@ -37,7 +35,7 @@ export class SisuAction extends Hub.Action {
     const axiosConfig = this.getAxiosConfig(request)
     const connectionId = request.formParams.connection
     try {
-      const customQueriesRequest = await axios.get(`https://dev.sisu.ai/rest/data_sources/${connectionId}/custom_queries`, axiosConfig)
+      const customQueriesRequest = await axios.get(`https://dev.sisu.ai/rest/data_sources/${connectionId}/detailed_base_queries`, axiosConfig)
       return customQueriesRequest.data
     } catch (error) {
       throw error
