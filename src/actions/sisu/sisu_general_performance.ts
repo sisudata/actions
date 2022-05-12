@@ -94,7 +94,7 @@ export class SisuAction extends Hub.Action {
       const allDimensionsQuery = await this.getAllDimensionsQuery(request)
       console.log('****** allDimensionsQuery', allDimensionsQuery)
       if (allDimensionsQuery) {
-        return await this.listOfDimensionNames(request, allDimensionsQuery.base_query_id, tableInfo)
+        return await this.listOfDimensionNames(request, allDimensionsQuery.baseQueryId, tableInfo)
       } else {
         const newAllDimensionsQuery = await this.createAllDimensionsQuery(request, tableInfo)
         return await this.listOfDimensionNames(request, newAllDimensionsQuery.base_query_id, tableInfo)
