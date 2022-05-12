@@ -36,6 +36,7 @@ export class SisuAction extends Hub.Action {
     const connectionId = request.formParams.connection
     try {
       const customQueriesRequest = await axios.get(`https://dev.sisu.ai/rest/data_sources/${connectionId}/detailed_base_queries`, axiosConfig)
+      console.log('---- *******', customQueriesRequest.data)
       return customQueriesRequest.data
     } catch (error) {
       throw error
